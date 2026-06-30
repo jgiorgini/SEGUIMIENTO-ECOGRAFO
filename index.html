@@ -227,27 +227,23 @@
 
 <!-- Firebase (compat SDK, sin build step — pensado para GitHub Pages) -->
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 
 <script>
-/* ====== CONFIGURACIÓN FIREBASE ======
-   Pegá acá el firebaseConfig de tu proyecto (el mismo de Monitor Laboratorio
-   sirve, o uno nuevo). Lo sacás de Firebase Console > Configuración del
-   proyecto > Tus apps > SDK setup and configuration.                      */
 const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "TU_PROYECTO.firebaseapp.com",
-  projectId: "TU_PROYECTO",
-  storageBucket: "TU_PROYECTO.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "TU_APP_ID"
+  apiKey: "AIzaSyBdnVk14BaJjxMtejhWz7XfhjnXgNJq7nc",
+  authDomain: "agenda-40a49.firebaseapp.com",
+  databaseURL: "https://agenda-40a49-default-rtdb.firebaseio.com",
+  projectId: "agenda-40a49",
+  storageBucket: "agenda-40a49.firebasestorage.app",
+  messagingSenderId: "692725419422",
+  appId: "1:692725419422:web:8f95c1e4ffa77d6a6bda8f"
 };
-/* ===================================== */
 
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const estadoRef = db.collection('ecografoMovil').doc('estado');
-const historialRef = db.collection('ecografoMovilHistorial');
+const db = firebase.database();
+const estadoRef = db.ref('ecografoMovil/estado');
+const historialRef = db.ref('ecografoMovilHistorial');
 
 let state = { current: { disponible: true }, history: [] };
 let elapsedTimer = null;
@@ -263,9 +259,9 @@ function showToast(msg){
 
 // Escucha en tiempo real: si otro médico registra algo desde su celular,
 // se actualiza acá solo, sin recargar la página.
-estadoRef.onSnapshot(
-  (doc) => {
-    state.current = doc.exists ? doc.data() : { disponible: true };
+estadoRef.on('value',
+  (snap) => {
+    state.current = snap.exists() ? snap.val() : { disponible: true };
     estadoCargado = true;
     render();
   },
@@ -275,9 +271,12 @@ estadoRef.onSnapshot(
   }
 );
 
-historialRef.orderBy('horaDevolucion', 'desc').limit(30).onSnapshot(
+historialRef.orderByChild('horaDevolucion').limitToLast(30).on('value',
   (snap) => {
-    state.history = snap.docs.map(d => d.data());
+    const arr = [];
+    snap.forEach(child => { arr.push(child.val()); });
+    arr.reverse(); // más reciente primero
+    state.history = arr;
     historialCargado = true;
     renderHistory();
   },
@@ -297,7 +296,7 @@ async function saveEstado(nuevoEstado){
 
 async function agregarHistorial(entry){
   try{
-    await historialRef.add(entry);
+    await historialRef.push(entry);
   }catch(e){
     showToast('Error al guardar el historial.');
     throw e;
