@@ -249,6 +249,8 @@ let state = { current: { disponible: true }, history: [] };
 let elapsedTimer = null;
 let estadoCargado = false;
 let historialCargado = false;
+let estadoAlCargar = null;       // estado tal como estaba la primera vez que esta pestaña recibió datos
+let primerSnapshotProcesado = false;
 
 function showToast(msg){
   const t = document.getElementById('toast');
@@ -261,7 +263,12 @@ function showToast(msg){
 // se actualiza acá solo, sin recargar la página.
 estadoRef.on('value',
   (snap) => {
-    state.current = snap.exists() ? snap.val() : { disponible: true };
+    const valor = snap.exists() ? snap.val() : { disponible: true };
+    state.current = valor;
+    if(!primerSnapshotProcesado){
+      estadoAlCargar = valor;
+      primerSnapshotProcesado = true;
+    }
     estadoCargado = true;
     render();
   },
@@ -374,16 +381,27 @@ function render(){
       elapsedEl.textContent = elapsedSince(c.horaSalida);
     }, 30000);
 
-    panel.innerHTML = `
-      <div class="tag">Registrar devolución</div>
-      <p style="font-size:13.5px;color:var(--muted);margin:0 0 4px;">
-        Confirmá que el equipo fue devuelto a la unidad coronaria.
-      </p>
-      <label for="horaDevolucionInput">Horario de devolución</label>
-      <input type="datetime-local" id="horaDevolucionInput">
-      <button class="return" onclick="registrarDevolucion()">Registrar devolución</button>
-    `;
-    document.getElementById('horaDevolucionInput').value = nowForInput();
+    const escaneoValido = estadoAlCargar && estadoAlCargar.disponible === false;
+
+    if(escaneoValido){
+      panel.innerHTML = `
+        <div class="tag">Registrar devolución</div>
+        <p style="font-size:13.5px;color:var(--muted);margin:0 0 4px;">
+          Confirmá que el equipo fue devuelto a la unidad coronaria.
+        </p>
+        <label for="horaDevolucionInput">Horario de devolución</label>
+        <input type="datetime-local" id="horaDevolucionInput">
+        <button class="return" onclick="registrarDevolucion()">Registrar devolución</button>
+      `;
+      document.getElementById('horaDevolucionInput').value = nowForInput();
+    } else {
+      panel.innerHTML = `
+        <div class="tag">Equipo en uso</div>
+        <p style="font-size:13.5px;color:var(--muted);margin:0;">
+          Retiro registrado correctamente. Para registrar la devolución, escaneá el QR del equipo nuevamente cuando lo traigas de vuelta a la unidad coronaria.
+        </p>
+      `;
+    }
   }
 
   renderHistory();
